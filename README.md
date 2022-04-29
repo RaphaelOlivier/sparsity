@@ -1,1 +1,3 @@
-# sparsity
+In order to run this code you must have installed RobustBench (https://github.com/RobustBench/robustbench), and Robustness (https://github.com/MadryLab/robustness). To run all experiments you should also have downloaded the DiffJPEG repository (https://github.com/mlomnitz/DiffJPEG) and the generated CIFAR10 data in https://github.com/deepmind/deepmind-research/tree/master/adversarial_robustness. Please specify the local paths to these repository and data, and other datasets, in `paths.py`
+
+In addition to angular sparsity this code offers multiple angle-based metrics that did not make it to the paper submission. The scripts to run for most of our results are in the `run.sh` file. More details on argument options can be found in the `scripts/scripts_utils.py` file.
