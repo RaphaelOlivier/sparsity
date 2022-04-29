@@ -1,0 +1,7 @@
+**/*.pyc
+log/*
+*.sh
+*.ipynb
+**/*.txt
+**/*.csv
+scripts/transfer/*
