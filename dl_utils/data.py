@@ -50,7 +50,7 @@ def cifar10_loader(args, batch_size=None):
     train_loader, val_loader = ds.make_loaders(
         batch_size=batch_size, workers=8, data_aug=not args.no_aug, shuffle_val=False)
 
-    if args.load_aug_data:
+    if args.load_ddpm_data:
         ds_aug = CIFAR_AUG(AUG_PATH)
         _, train_loader_aug = ds_aug.make_loaders(
             batch_size=batch_size, workers=8, data_aug=False, only_val=True, shuffle_val=True)
