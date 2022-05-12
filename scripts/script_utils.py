@@ -1,9 +1,13 @@
+import sys
+from scripts.paths import DIFFJPEG_PATH
 import argparse
 import numpy as np
 from angles.metrics_estimation import compute_angular_sparsity, compute_closest, compute_adversarial_loss, compute_linf_sparsity
 
 import logging
 logger = logging.getLogger(__name__)
+
+sys.path.append(DIFFJPEG_PATH)
 
 
 def train_args(parser):
@@ -14,6 +18,7 @@ def train_args(parser):
     parser.add_argument("--lr-train", type=float, default=None)
     parser.add_argument("--lr-opt", type=float, default=0.1)
     parser.add_argument("--iters-train", type=int, default=1)
+    parser.add_argument("--ord-train", type=str, default='2')
     parser.add_argument("--lr-steps", type=int, default=3)
     parser.add_argument("--metrics-train", action='store_true')
     parser.add_argument("--metrics-mode", type=str, default='sup')
@@ -30,8 +35,17 @@ def train_args(parser):
     parser.add_argument("--sps", action='store_true')
     parser.add_argument("--thermo", action='store_true')
     parser.add_argument("--randinput", action='store_true')
-    parser.add_argument("--ckpt-id", type=str, default='saved_checkpoints')
-    parser.add_argument("--load-aug-data", action='store_true')
+    parser.add_argument("--ckpt-id", type=str, default=None)
+    parser.add_argument("--load-ddpm-data", action='store_true')
+    return parser
+
+
+def aug_args(parser):
+    parser.add_argument("--aug-type", type=str, default=None)
+    parser.add_argument("--aug-prob", type=float, default=0.5)
+    parser.add_argument("--aug-beta", type=float, default=1.0)
+    parser.add_argument("--aug-box-length", type=int, default=16)
+    parser.add_argument("--aug-corner-length", type=int, default=12)
     return parser
 
 
@@ -104,6 +118,7 @@ def train_script_parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser = train_args(parser)
+    parser = aug_args(parser)
     args = parser.parse_args()
     if args.lr_train is None:
         args.lr_train = args.eps_train
@@ -153,6 +168,32 @@ def extract_attack_kwargs(args, train=False, eval=True):
         }
         l.append(attack_kwargs)
     return tuple(l) if len(l) > 1 else l[0]
+
+
+def extract_aug_args(args):
+    if args.aug_type is None:
+        return {'use_strong_aug': False}
+    elif args.aug_type in ['cutmix', 'mixup']:
+        return {
+            'use_strong_aug': True,
+            'type': args.aug_type,
+            'aug_prob': args.aug_prob,
+            'beta': args.aug_beta
+        }
+    elif args.aug_type in ['cutout']:
+        return {
+            'use_strong_aug': True,
+            'type': args.aug_type,
+            'aug_prob': args.aug_prob,
+            'length': args.aug_box_length
+        }
+    elif args.aug_type in ['ricap']:
+        return {
+            'use_strong_aug': True,
+            'type': args.aug_type,
+            'aug_prob': args.aug_prob,
+            'length': args.aug_corner_length
+        }
 
 
 def extrack_metrics_kwargs(args, attack_kwargs=None):
