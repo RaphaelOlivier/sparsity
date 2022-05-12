@@ -7,7 +7,6 @@ import dill
 import sys
 from robustness import model_utils, cifar_models, imagenet_models
 from robustness.attacker import AttackerModel
-import robustbench
 from dl_utils import mnist_models
 from scripts.paths import OUTPUT_FOLDER_PATH
 from angles import metrics_utils
@@ -16,7 +15,6 @@ from dl_utils.transforms import (
     add_random_preprocessing,
     add_squeezing_preprocessing,
     add_spatial_preprocessing,
-    add_thermo_preprocessing
 )
 from dl_utils.vit import VisionTransformer
 
@@ -83,6 +81,7 @@ def restore_vit_model(*_, arch, dataset, resume_path=None):
 
 
 def load_rb_model(arch, dataset, ds_name):
+    import robustbench
     tm = 'L2'
     if ds_name == "imagenet":
         #assert arch.startswith("Standard")
@@ -116,11 +115,7 @@ def train_out_path(args):
         OUTPUT_FOLDER_PATH, args.dataset, args.model_type +
         (('_adv_'+str(args.eps_train)+'_'+str(args.iters_train)) if args.adv_train else '') +
         (('_no_aug') if args.no_aug else '') +
-        (('_metric_' + str(args.metrics_threshold) + (
-            ('_'+args.metrics_mode) if args.metrics_mode != 'sup' else ''))
-         if args.metrics_train else '') +
-        ('_iso_'+str(args.iso_num)+'_' +
-         str(args.iso_angle).replace('/', '-') if args.iso_train else '')
+        (('_'+args.aug_type) if args.aug_type is not None else '')
     )
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -187,8 +182,6 @@ def load_model(
         m = add_squeezing_preprocessing(m, 5)
     if args.sps:
         m = add_spatial_preprocessing(m, 3)
-    if args.thermo:
-        m = add_thermo_preprocessing(m, 3)
     if args.randinput:
         m = add_random_preprocessing(m)
     if wrap_for_attacks:
@@ -196,16 +189,20 @@ def load_model(
     return m
 
 
-def build_model(*_, arch, dataset, resume_path=None,
-                parallel=False, pytorch_pretrained=False, add_custom_forward=False):
+def build_model(*_, arch, dataset, resume_path=None, pytorch_pretrained=False):
     if arch == "vit":
         arch = ViT()
-    classifier_model = dataset.get_model(arch, pytorch_pretrained) if \
-        isinstance(arch, str) else arch
-    model = model_utils.AttackerModel(classifier_model, dataset)
+    if resume_path is not None:
+        print(resume_path)
+        model, checkpoint = model_utils.make_and_restore_model(
+            arch=arch, dataset=dataset, resume_path=resume_path)
+    else:
+        classifier_model = dataset.get_model(arch, pytorch_pretrained) if \
+            isinstance(arch, str) else arch
+        model = model_utils.AttackerModel(classifier_model, dataset)
+        checkpoint = None
 
     model = model.cuda()
-    checkpoint = None
     return model, checkpoint
 
 
