@@ -1,4 +1,5 @@
 import sys
+import os
 from scripts.paths import DIFFJPEG_PATH
 import argparse
 import numpy as np
@@ -64,6 +65,7 @@ def metrics_selection_args(parser):
     parser.add_argument("--only-loss", action='store_true')
     parser.add_argument("--no-loss", action='store_true')
     parser.add_argument("--no-closest", action='store_true')
+    parser.add_argument("--no-sparsity", action='store_true')
     return parser
 
 
@@ -81,7 +83,7 @@ def metrics_options_args(parser):
 
 def eval_script_args(parser):
     parser.add_argument("--on-train", action='store_true')
-    parser.add_argument("--save-sparsity", type=str, default=None)
+    parser.add_argument("--save-sparsity", action='store_true')
     parser.add_argument("--ignore-accuracy", action='store_true')
     return parser
 
@@ -106,6 +108,7 @@ def eval_script_parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser = train_args(parser)
+    parser = aug_args(parser)
     parser = attack_eval_args(parser)
     parser = metrics_selection_args(parser)
     parser = metrics_options_args(parser)
@@ -153,6 +156,7 @@ def extract_attack_kwargs(args, train=False, eval=True):
             'attack_lr': args.lr_train,
             'attack_steps': args.iters_train,
             'ord': get_ord(args.ord_train),
+            'constraint': args.ord_train,
             'epochs': args.epochs,
             'step_lr': args.epochs//args.lr_steps,
             'lr': args.lr_opt,
@@ -194,6 +198,9 @@ def extract_aug_args(args):
             'aug_prob': args.aug_prob,
             'length': args.aug_corner_length
         }
+    else:
+        raise ValueError(
+            'Supported augmentations are cutmix, mixup, cuutout and ricap')
 
 
 def extrack_metrics_kwargs(args, attack_kwargs=None):
@@ -269,10 +276,10 @@ def display_results(args, res):
 
 def save_results(args, res):
     if args.save_sparsity:
-        densities = (res if args.no_radius else res[0])
-        densities = np.array(
-            [v.mean(axis=-1) if (v is not None) else np.pi for v in densities])
-        np.save(args.save_sparsity, densities)
+        save_path = os.path.join(args.out_path, "sparsity_results.csv")
+        sparsities = res
+        print(sparsities)
+        np.savetxt(save_path, sparsities)
 
 
 def load_array(path):
