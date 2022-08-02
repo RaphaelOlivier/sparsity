@@ -3,10 +3,10 @@ from torchvision import transforms
 import os
 import argparse
 import numpy as np
+from scripts.script_utils import *
 from dl_utils import model, data
 from dl_utils.attack import attack
 from robustness import train
-from scripts.script_utils import *
 from angles.metrics_estimation import compute_over_dataset
 import logging
 logger = logging.getLogger()
@@ -63,7 +63,7 @@ def main(args):
         loader, loader_batch = train_loader, train_loader_batch
     if not args.ignore_accuracy:
         test_nat_acc, test_adv_acc, _ = attack(
-            net, loader=loader_batch, eps=args.eps_eval, nb_iter=args.iters_eval, ord=args.ord_eval, num_batches=15)
+            net, loader=loader_batch, eps=args.eps_eval, nb_iter=args.iters_eval, ord=args.ord_eval, num_batches=15, autoattack=False, lr=args.lr_eval)
         logger.info("Test accuracy %f" % test_nat_acc)
         logger.info("Test adversarial accuracy %f" % test_adv_acc)
 
