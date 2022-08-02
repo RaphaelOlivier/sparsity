@@ -8,22 +8,23 @@ import torch
 DEVICE = "cuda"
 
 
-def attack(net, loader, eps=1., num_batches=np.inf, nb_iter=500, ord=2, autoattack=False):
-    attack_class = L2PGDAttack if ord == 2 else LinfPGDAttack
+def attack(net, loader, eps=1., num_batches=np.inf, nb_iter=100, ord=2, autoattack=False, lr=None):
+    attack_class = L2PGDAttack if ord in [2, "2"] else LinfPGDAttack
     adversary = attack_class(
         net, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=eps,
-        nb_iter=nb_iter, eps_iter=eps, rand_init=False, clip_min=-2.0, clip_max=2.0,
+        nb_iter=nb_iter, eps_iter=lr if lr else eps, rand_init=False, clip_min=-2.0, clip_max=2.0,
         targeted=False)
-    norm = 'L2' if ord == 2 else 'Linf'
+    norm = 'L2' if ord in [2, "2"] else 'Linf'
+
     auto_adversary = AutoAttack(net, norm=norm, eps=eps, version='custom', attacks_to_run=[
-        'apgd-ce'], verbose=True)
+        'apgd-ce'])
     attack_fct = auto_adversary.run_standard_evaluation if autoattack else adversary.perturb
     test_acc = 0
     test_adv_acc = 0
     test_len = 0
     adv_data = []
     for i, (x, y) in enumerate(loader):
-        print("Batch", i+1)
+        #print("Batch", i+1)
         x = x.to(DEVICE)
         y = y.to(DEVICE)
         net = net.eval()

@@ -19,7 +19,7 @@ def compute_over_dataset(
     for i, (x, y) in enumerate(loader):
         if n_inputs is not None and i >= n_inputs:
             break
-        if n_inputs is not None and n_inputs <= 100:
+        if n_inputs is not None:  # and n_inputs <= 100:
             logger.debug("Point %d/%d" % (i+1, n_inputs))
         elif (i+1) % 100 == 0:
             logger.debug("Point %d" % (i+1))
@@ -86,7 +86,7 @@ def compute_linf_sparsity(
 ):
     y = check_pred_and_robustness(model, x, y, attack_kwargs)
     if y is None:
-        return None
+        return x.numel()
     directions, pixel_masks_idx = pgd_cones.sample_directions_uniformly(
         x, n_cones_sparsity, order=np.inf)
     constraint = np.zeros_like(directions).reshape(n_cones_sparsity, -1)
