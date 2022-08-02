@@ -39,12 +39,7 @@ def cifar10_loader(args, batch_size=None):
             ds_kwargs = self.override_args(ds_kwargs, kwargs)
             super(CIFAR_AUG, self).__init__('cifaraug', data_path, **ds_kwargs)
     if batch_size is None:
-        if args.iso_train:
-            batch_size = args.iso_num
-        elif "batch_size" in vars(args):
-            batch_size = args.batch_size
-        else:
-            batch_size = 64
+        batch_size = 64
 
     ds = CIFAR(CIFAR_PATH)
     train_loader, val_loader = ds.make_loaders(

@@ -80,9 +80,9 @@ def restore_vit_model(*_, arch, dataset, resume_path=None):
     return model, checkpoint
 
 
-def load_rb_model(arch, dataset, ds_name):
+def load_rb_model(arch, dataset, ds_name, ord=2):
     import robustbench
-    tm = 'L2'
+    tm = 'L2' if ord == 2 else 'Linf'
     if ds_name == "imagenet":
         #assert arch.startswith("Standard")
         tm = "Linf"
@@ -115,7 +115,8 @@ def train_out_path(args):
         OUTPUT_FOLDER_PATH, args.dataset, args.model_type +
         (('_adv_'+str(args.eps_train)+'_'+str(args.iters_train)) if args.adv_train else '') +
         (('_no_aug') if args.no_aug else '') +
-        (('_'+args.aug_type) if args.aug_type is not None else '')
+        (('_'+args.aug_type+'_'+str(args.aug_prob))
+         if args.aug_type is not None else '')
     )
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -130,52 +131,31 @@ def load_model(
 ):
     all_models = cifar_models if args.dataset == "cifar10" else (
         imagenet_models if args.dataset == "imagenet" else mnist_models)
-
-    out_path = os.path.join(train_out_path(args), ckpt_id)
-    best_checkpoint_path = os.path.join(out_path, 'checkpoint.pt.best')
-    if args.avg_epochs:
-        checkpoint_path_avg = os.path.join(out_path, 'checkpoint.pt.averaged')
-        if os.path.exists(checkpoint_path_avg):
-            m, _ = model_utils.make_and_restore_model(
-                arch=args.model_type, dataset=dataset, resume_path=checkpoint_path_avg)
-        else:
-            sum_sd = None
-            ndicts = 0
-            for i in range(0, 150):
-                checkpoint_path = os.path.join(
-                    out_path, 'checkpoint.pt.'+str(i))
-                if os.path.exists(checkpoint_path):
-                    print(i)
-                    m, _ = model_utils.make_and_restore_model(
-                        arch=args.model_type, dataset=dataset, resume_path=checkpoint_path)
-                    sd = m.state_dict()
-                    ndicts += 1
-                    if sum_sd is None:
-                        sum_sd = {}
-                        for k in sd:
-                            sum_sd[k] = sd[k]
-                    else:
-                        for k in sd:
-                            sum_sd[k] = sum_sd[k]+sd[k]
-            for k in sum_sd:
-                sum_sd[k] = sum_sd[k]/ndicts
-            m.load_state_dict(sum_sd)
-            _, ck = model_utils.make_and_restore_model(
-                arch=args.model_type, dataset=dataset, resume_path=best_checkpoint_path)
-            ck['model'] = {'module.'+k: v for k, v in sum_sd.items()}
-            ck['optimizer'] = None
-            ck['schedule'] = None
-            torch.save(ck, checkpoint_path_avg, pickle_module=dill)
+    model_folder = train_out_path(args)
+    args.out_path = model_folder
     if args.model_type == "vit":
         args.model_type = VisionTransformer()
         out_path = os.path.join(OUTPUT_FOLDER_PATH, args.dataset, 'vit')
+        best_checkpoint_path = os.path.join(out_path, 'checkpoint.pt.best')
         m, _ = restore_vit_model(
             arch=args.model_type, dataset=dataset, resume_path=best_checkpoint_path)
     elif args.model_type in all_models.__dict__:
+        if ckpt_id is None:
+            dirs = os.listdir(model_folder)
+            dirs = [d for d in dirs if os.path.isdir(
+                os.path.join(model_folder, d))]
+            assert len(
+                dirs) < 2, "more than one possible checkpoint id in folder %s. Pick one" % model_folder
+            assert len(
+                dirs) > 0, "No checkpoint in folder %s" % model_folder
+            ckpt_id = dirs[0]
+        out_path = os.path.join(model_folder, ckpt_id)
+        best_checkpoint_path = os.path.join(out_path, 'checkpoint.pt.best')
         m, _ = model_utils.make_and_restore_model(
             arch=args.model_type, dataset=dataset, resume_path=best_checkpoint_path)
     else:
-        m = load_rb_model(args.model_type, dataset, args.dataset)
+        ord = args.ord_eval
+        m = load_rb_model(args.model_type, dataset, args.dataset, ord=ord)
     if args.jpeg:
         m = add_jpeg_preprocessing(m, 32)
     if args.fs:
